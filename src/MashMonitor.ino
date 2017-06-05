@@ -1,6 +1,7 @@
 // This #include statement was automatically added by the Particle IDE.
 #include <OneWire.h>
 #include <DS18.h>
+#include <math.h>
 
 /*
 * Project MashMonitor
@@ -39,27 +40,32 @@ void setup(){
 }
 
 void loop(){
-  float tempC;
   bool success = sensor.read();
   if(success){
-    tempC = sensor.celsius();
-    String potato = String(tempC);
-    char tempString[potato.length()+1];
-    potato.toCharArray(tempString, potato.length());
+    String tempC = String(sensor.celsius(), 2);
     if(Serial.available() > 2){
-      Serial.print(tempString);
+      Serial.print(tempC);
       Serial.read();
     }
-
+    boolean currentLineIsBlank = true;
     if (client.connected()) {
       while (client.available()) {
-        for(int i = 0; i < strlen(tempString); i++){
-          server.write(tempString[i]);
+        char c = client.read();
+        Serial.println(c);
+        if (c == '\n' && currentLineIsBlank) {
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/plain");
+          client.println("Connection: close");
+          client.println();
+          client.print(tempC);
+          delay(500);
+          client.flush();
+          client.stop();
         }
-        client.stop();
+
       }
-      } else {
-        client = server.available();
-      }
+    } else {
+      client = server.available();
     }
   }
+}
